@@ -25,6 +25,9 @@
 
 import sbt._
 import Keys._
+import edu.umass.cs.iesl.sbtbase.{IeslProject, Config}
+import IeslProject._, Config._
+
 
 object SalatBuild extends Build {
 
@@ -36,7 +39,7 @@ object SalatBuild extends Build {
   val coreDeps = Seq(casbah, json4sNative, commonsLang) ++ testDeps
 
   lazy val salat = Project(
-    id = "salat",
+    id = "salat-iesl",
     base = file("."),
     settings = buildSettings ++ Seq(
       publishArtifact := false
@@ -45,7 +48,7 @@ object SalatBuild extends Build {
   ) dependsOn(util, core)
 
   lazy val util = {
-    val id = "salat-util"
+    val id = "salat-iesl-util"
     val base = file("salat-util")
     val settings = buildSettings ++ Seq(
       libraryDependencies ++= utilDeps,
@@ -55,7 +58,7 @@ object SalatBuild extends Build {
   }
 
   lazy val core = Project(
-    id = "salat-core",
+    id = "salat-iesl-core",
     base = file("salat-core"),
     settings = buildSettings ++ Seq(libraryDependencies ++= coreDeps)
   ) dependsOn (util)
@@ -67,7 +70,7 @@ object BuildSettings {
   import Repos._
 
   val buildOrganization = "com.novus"
-  val buildVersion = "1.9.2-soergel-SNAPSHOT"
+  val buildVersion = "1.9.2-SNAPSHOT"
   val buildScalaVersion = "2.9.2"
 
   val buildSettings = Defaults.defaultSettings ++ Format.settings ++ Publish.settings ++ Ls.settings ++ net.virtualvoid.sbt.graph.Plugin.graphSettings ++ Seq(
@@ -114,15 +117,32 @@ object Format {
 }
 
 object Publish {
+
+
+  def publishToIeslV2(vers: String, repotype: RepoType) =  {
+    def repo(name: String) = name at nexusHttpsUrl + "/content/repositories/" + name
+    val isSnapshot = vers.endsWith("SNAPSHOT")
+    val isPrivate = if (repotype == Private) "private-" else ""
+    val repoName = isPrivate + (if (isSnapshot) "snapshots" else "releases")
+    Some(repo(repoName))
+  }
+
+  val credsV2 = 
+    Seq("build.publish.user", "build.publish.password").map(k => Option(System.getProperty(k))) match {
+      case Seq(Some(user), Some(pass)) =>
+        Credentials(publishRealm, publishHost, user, pass)
+      case _ =>
+        Credentials(Path.userHome / ".ivy2" / ".credentials")
+    }
+
+
+
   lazy val settings = Seq(
     publishMavenStyle := true,
     publishTo <<= version { (v: String) =>
-      val nexus = "https://oss.sonatype.org/"
-      if (v.trim.endsWith("SNAPSHOT"))
-        Some("snapshots" at nexus + "content/repositories/snapshots")
-      else
-        Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+      publishToIeslV2(v, Public)
     },
+    credentials += credsV2,
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     licenses := Seq("Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
@@ -138,7 +158,8 @@ object Publish {
           <name>Rose Toomey</name>
           <url>http://github.com/rktoomey</url>
         </developer>
-      </developers>)
+      </developers>
+    )
   )
 }
 
