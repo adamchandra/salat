@@ -104,7 +104,8 @@ object ToJValue extends Logging {
       case u: java.net.URL => JString(u.toString) // might as well
       case n if n == null && ctx.jsonConfig.outputNullValues => JNull
       case ts: BSONTimestamp => ctx.jsonConfig.bsonTimestampStrategy.out(ts)
-      case x: AnyRef => sys.error("serialize: Unsupported JSON transformation for class='%s', value='%s'".format(x.getClass.getName, x))
+      case x: AnyRef => ctx.jsonConfig.customSerializationStrategy.out(x)
+      //case x: AnyRef => sys.error("serialize: Unsupported JSON transformation for class='%s', value='%s'".format(x.getClass.getName, x))
     }
 
     //    log.debug(
@@ -201,7 +202,8 @@ object FromJValue extends Logging {
       case i: JInt                       => i.values.intValue()
       case b: JBool                      => b.values
       case JsonAST.JNull                 => null
-      case x: AnyRef                     => sys.error("deserialize: unsupported JSON transformation for class='%s', value='%s'".format(x.getClass.getName, x))
+      case x: AnyRef                     => ctx.jsonConfig.customSerializationStrategy.in(x, tf.t)
+      //case x: AnyRef                     => sys.error("deserialize: unsupported JSON transformation for class='%s', value='%s'".format(x.getClass.getName, x))
     }
     //    log.debug(
     //      """

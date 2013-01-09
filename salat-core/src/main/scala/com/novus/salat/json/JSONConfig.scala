@@ -32,6 +32,8 @@ import java.util.{ TimeZone, Date }
 import org.json4s._
 import org.json4s.native.JsonMethods._
 import org.bson.types.{ BSONTimestamp, ObjectId }
+import com.novus.salat.TypeFinder
+import tools.scalap.scalax.rules.scalasig.TypeRefType
 
 object JSONConfig {
   val ISO8601 = ISODateTimeFormat.dateTimeNoMillis().withZone(DateTimeZone.UTC)
@@ -41,7 +43,7 @@ case class JSONConfig(dateStrategy: JSONDateStrategy = StringDateStrategy(),
                       timeZoneStrategy: JSONTimeZoneStrategy = StringTimeZoneStrategy(),
                       objectIdStrategy: JSONObjectIdStrategy = StrictJSONObjectIdStrategy,
                       bsonTimestampStrategy: JSONbsTimesampStrategy = StrictBSONTimestampStrategy,
-                      outputNullValues: Boolean = false)
+                      outputNullValues: Boolean = false, customSerializationStrategy: CustomSerializationStrategy = NoCustomSerializationStrategy)
 
 trait JSONObjectIdStrategy {
   def in(j: JValue): ObjectId
@@ -154,3 +156,15 @@ object StrictBSONTimestampStrategy extends JSONbsTimesampStrategy {
   def out(ts: BSONTimestamp) = JObject(List(JField("$ts", JInt(ts.getTime)), JField("$inc", JInt(ts.getInc))))
 }
 // or roll your own date strategy....  O the excitement.
+
+trait CustomSerializationStrategy {
+  def in(j: JValue, trt: TypeRefType): AnyRef
+
+  def out(x: AnyRef): JValue
+}
+
+object NoCustomSerializationStrategy extends CustomSerializationStrategy {
+  def in(x: JValue, trt: TypeRefType) = sys.error("deserialize: unsupported JSON transformation for class='%s', value='%s'".format(x.getClass.getName, x))
+
+  def out(x: AnyRef) = sys.error("serialize: Unsupported JSON transformation for class='%s', value='%s'".format(x.getClass.getName, x))
+}
